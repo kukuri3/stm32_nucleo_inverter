@@ -70,48 +70,26 @@ void xSpi3Init();
 void xTim5Init();
 void xTim4Init();
 float xCurrentRead(void);
-static unsigned char  crc8(const void* buff, size_t size);
 void xADCInit();
 void xLed(int sw);
 void xTim2Init(void);
 void xSetTim2CountDir(void);
 void xTim3Init(void);
-float xLpf(float in, int reset);
-uint8_t xTdkRead8bit(uint16_t adr);
-uint16_t xTdkRead16bit(uint16_t adr);
-void xTdkWrite8bit(uint16_t adr,uint8_t data);
-void xTdkWrite16bit(uint16_t adr, uint16_t writedata);
-void xTdkAllRead(void);
-void xTdkDebugMode(void);
-void xEXTILineConfig(void);
-void xCurrentSensorCalib(void);
-void xTdkSetZero(void);
-void xTdkWriteNVM(void);
-
-#define SPI2_CS_HIGH()	GPIO_SetBits(GPIOB, GPIO_Pin_1)
-#define SPI2_CS_LOW()	GPIO_ResetBits(GPIOB, GPIO_Pin_1)
-#define SPI3_CS_HIGH()	GPIO_SetBits(GPIOD, GPIO_Pin_2)
-#define SPI3_CS_LOW()	GPIO_ResetBits(GPIOD, GPIO_Pin_2)
 
 TControlTable gT;
 uint16_t g_ad_value[8];
 int32_t gTimCount;
-uint16_t g_motor_pos_pre=0;
-uint16_t g_motor_pos_pre2=0;
-float gPulse2Rad;
-float gVolt2Duty;
-long gLineInt;
 
-#define kSamplingTime (0.0001)	//制御周期10KHz=0.0001[sec]
-#define kSamplingFreq (10000.0)	//制御周波数=10KHz[Hz]
-#define kPI (3.14159265)
-#define kEncPulsex4 (4000.0)
-#define kSpiReadMax 100
+long gLineInt;
 
 int pwm=0;
 
-uint16_t g_move_mode=0;	//モータ駆動モード 0:直線 1:sinで往復
-uint16_t g_disp_mode=0;	//情報連続表示モードスイッチ
+int32_t gCount;
+int32_t gSinTable[100];
+int32_t gFreq=50;
+int32_t gPower=0;
+float gPhase=0.0;
+
 
 int main(void)
 {
@@ -132,7 +110,9 @@ int main(void)
 
 
 
-	xTim3Init();	//タイマ割り込み(pd制御)
+
+
+	xTim3Init();	//タイマ割り込み(10khz)
 
 	int rxnum=0;
 
@@ -140,10 +120,21 @@ int main(void)
 	xUSART2_puts("\r\n\r\n\r\n\r\nwelcome to nucleo F401 inverter\r\n");
 
 
+
+	//make sin table
+	float p=0.0;
+	float step=(2.0*3.141592)/100;
+	int i;
+	for(i=0;i<100;i++){
+		gSinTable[i]=sin(p)*1000;
+		p+=step;
+		sprintf(buf,"%d,%d\r\n",i,gSinTable[i]);
+		xUSART2_puts(buf);
+	}
+
 	while (1)
 	{
 
-		int i;
 		int dispcount=0;
 
 		rxnum=xUSART2_rxnum();
@@ -153,6 +144,7 @@ int main(void)
 		//シリアル入力の処理
 		if(rxnum>0){
 			char c=xUSART2_getc();
+			/*
 			if(c=='0'){
 				pwm=0;
 				xSetPwm(pwm);
@@ -164,14 +156,24 @@ int main(void)
 			if(c=='2'){
 				pwm-=10;
 				xSetPwm(pwm);
-			}
+			}*/
 			sprintf(buf,"tim,%ld,pwm,%d\r\n",
 					gTimCount,
 					pwm);
 			xUSART2_puts(buf);
-		}
 
-//		Delay(0xFFF);
+			if(c=='1')gPower+=10;
+			if(c=='2')gPower-=10;
+			if(c=='3')gFreq++;
+			if(c=='4')gFreq--;
+			if(c=='0')gPower=0;
+
+		}
+		sprintf(buf,"freq,%d,power,%d\r\n",gFreq,gPower);
+		xUSART2_puts(buf);
+
+
+		//		Delay(0xFFF);
 
 
 	}
@@ -281,6 +283,12 @@ void TIM3_IRQHandler (void)
 	// TIM2_FREQUENCY周期での処理
 	if (TIM_GetITStatus(TIM3, TIM_IT_CC1) != RESET) {
 		TIM_ClearITPendingBit (TIM3, TIM_IT_CC1);
+
+
+		gPhase+=(0.01*gFreq);
+		if(gPhase>=100.0)gPhase=0.0;
+		xSetPwm(gSinTable[(int)gPhase]*gPower/1000);
+
 	}
 
 

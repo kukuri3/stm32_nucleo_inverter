@@ -115,7 +115,8 @@ void xUSART2_init(void)
 	  //GPIO_InitStructure.GPIO_Pin = USARTx_RX_PIN;
 	  //GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStructure);
 
-	  USART_InitStructure.USART_BaudRate =  921600;	//115200;460800;
+//	  USART_InitStructure.USART_BaudRate =  921600;	//115200;460800;
+	  USART_InitStructure.USART_BaudRate =  115200;	//115200;460800;
 	  USART_InitStructure.USART_WordLength = USART_WordLength_8b;
 	  USART_InitStructure.USART_StopBits = USART_StopBits_1;
 	  /* When using Parity the word length must be configured to 9 bits */

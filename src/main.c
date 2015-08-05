@@ -173,7 +173,7 @@ int main(void)
 		xUSART2_puts(buf);
 
 
-		//		Delay(0xFFF);
+		Delay(0xFFFF);
 
 
 	}

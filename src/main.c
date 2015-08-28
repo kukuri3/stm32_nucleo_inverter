@@ -103,7 +103,7 @@ int main(void)
 	xUSART2_init();
 	xTim1Init();	//PWM
 	xSetPwm(0);
-	//	xADCInit();
+	xADCInit();
 	//	xTim2Init();
 	//	xEXTILineConfig();	//DIR(PC11)入力で割り込みがかかるようにする。
 	//	xSetTim2CountDir();
@@ -132,15 +132,25 @@ int main(void)
 		xUSART2_puts(buf);
 	}
 
+
+		int dispcount=0;
 	while (1)
 	{
 
-		int dispcount=0;
+
 
 		rxnum=xUSART2_rxnum();
-
+		int gp=g_ad_value[0]/4;
+		if(gp>1000)gp=1000;
+		if(gp<0)gp=0;
+		gPower=gp;
+		
 		dispcount++;
-
+		if(dispcount>100){
+			sprintf(buf,"freq,%d,power,%d,ad,%d\r\n",gFreq,gPower,g_ad_value[0]);
+			xUSART2_puts(buf);
+			dispcount=0;
+		}
 		//シリアル入力の処理
 		if(rxnum>0){
 			char c=xUSART2_getc();
@@ -169,8 +179,6 @@ int main(void)
 			if(c=='0')gPower=0;
 
 		}
-		sprintf(buf,"freq,%d,power,%d\r\n",gFreq,gPower);
-		xUSART2_puts(buf);
 
 
 		Delay(0xFFFF);
